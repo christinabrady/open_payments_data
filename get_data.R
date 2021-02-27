@@ -1,84 +1,109 @@
-library(RODBC)
+library(RPostgreSQL)
 library(dplyr)
 library(NCmisc)
+library(rvest)
 library(ckit)
 
-options(stringsAsFactors = F)
+### the file names change to include the upload date.
+### so it will be best to grab the file names directly from the website.
 
-### as of August 31, 2019 the only difference in data links is the program year. This may change.
-### example link http://download.cms.gov/openpayments/PGYR18_P062819.ZIP
+drv <- dbDriver("PostgreSQL")
+con <- dbConnect(drv,
+  dbname = "play",
+  host = psqlCreds()$host,
+  port = psqlCreds()$port,
+  user = psqlCreds()$user,
+  password = psqlCreds()$password)
 
+links <- read_html("https://www.cms.gov/OpenPayments/Explore-the-Data/Dataset-Downloads") %>%
+  html_nodes("a") %>%
+  html_attr("href")
+
+data_links <- grep(".PGYR.*\\.ZIP$", links, value = TRUE) ## this grabs the zip file download links from all of the links.
 ## the zipped file in the base link expands to 4 files:
 # 1. OP_DTL_GNRL_PGYR...csv
 # 2. OP_DTL_OWNRSHP_PGYR...csv
 # 3. OP_DTL_RSRCH_PGYR...csv
 # 4. OP_PGYR...README...txt
 
-pgyr <- 18
-base_link <- "http://download.cms.gov/openpayments/PGYR%s_P062819.ZIP"
-fname <- sprintf(base_link, pgyr)
+## The General file GNRL is enormous and needs to be split
+## The others aren't that big.
 
-fltypes <- c("GNRL", "OWNRSHP", "RSRCH")
-
-dbexists(chan, tablename){
-  tmp <- sqlQuery(chan, sprintf("SELECT * FROM %s LIMIT 1"), tablename)
-  is.data.frame(tmp)
+getHeader <- function(fl){
+  read.csv(fl, nrow = 1) %>%
+  cleanColNames() %>%
+  colnames()
 }
 
-prepFiles <- function(fltype){
-  file.split(grep(ft, fls, value = T))
-  grep_pat <- sprintf("(?=.*%s)(?=.*part)", ft)
-  grep(grep_pat, list.files(), value = T, perl = T)
+processGeneralFile <- function(dbcon, fl){
+  file.split(fl)
+  cnames <- getHeader(fl)
+  split_files <- list.files(pattern = "part")
+  cat("There are", length(split_files), "files to work on", fill = TRUE)
+
+  lapply(split_files, function(sfl){
+    cat("Working on", basename(sfl), fill = TRUE)
+
+    tmp <- read.csv(sfl, header = FALSE) %>%
+      setNames(cnames) %>%
+      mutate(download_date = Sys.Date())
+    dbWriteTable(conn = dbcon,
+      name = c("sunshine", "general"),
+      value = tmp,
+      row.names = FALSE,
+      append = dbExistsTable(dbcon, c("sunshine", "general"))
+    )
+    cat("Deleting file", fill = TRUE)
+    unlink(sfl)
+  })
+  unlink(fl)
 }
 
-startUpload <- function(fl, chan, tname){
+processOtherFiles <- function(dbcon, fl, tname){
   tmp <- read.csv(fl) %>%
     cleanColNames() %>%
-    mutate(data_date = Sys.Date())
-  sqlSave(chan,
-    tmp,
-    tname,
-    append = dbexists(chan, tname),
-    rownames = F,
-    varTypes = c("data_date" = "date")
+    mutate(download_date = Sys.Date())
+  dbWriteTable(conn = dbcon,
+    name = c("sunshine", tname),
+    value = tmp,
+    row.names = FALSE,
+    append = dbExistsTable(dbcon, c("sunshine", tname))
   )
+  cat("Deleting file", fill = TRUE)
   unlink(fl)
-  return(colnames(tmp))
 }
 
 
-dbplay <- odbcConnect("play")
-sqlQuery(dbplay, "CREATE SCHEMA sunshine")
+processLink <- function(lnk){
+  ### download and unzip the zip file
+  cat("Downloading ", lnk)
+  download.file(lnk, destfile = basename(lnk))
+  unzip(basename(lnk))
+  unzipped_fls <- list.files(pattern = '\\.csv')
 
+  ### process the general file, which needs to be split
+  cat("Starting on General file")
+  gen <- grep("GNRL", unzipped_fls, value = TRUE)
+  processGeneralFile(con, gen)
 
-mkdir("_tmp")
+  cat("Starting on ownership file")
+  owner <- grep("OWNRSHP", unzipped_fls, value = TRUE)
+  processOtherFiles(con, owner, "ownership")
+
+  cat("Starting on research file")
+  research <- grep("RSRCH", unzipped_fls, value = TRUE)
+  processOtherFiles(con, research, "research")
+
+  remaining_files <- list.files()
+  lapply(remaining_files, unlink)
+}
+
+dir.create("_tmp")
 setwd("_tmp")
 
-download.file(fname, destfile = basename(fname), method = "wget")
-unzip(basename(fname))
+dbSendQuery(con, "CREATE SCHEMA sunshine")
 
-fls <- list.files(pattern = "csv")
+lapply(data_links, processLink)
 
-lapply(fltypes, function(ft){
-  cat("working on ", ft, fill = T)
-  newfls <- prepFiles(ft)
-
-  cat(length(newfls), " files to process", fill = T)
-
-  tname <- sprintf("sunshine.%s", tolower(ft))
-
-  ### read the first file separately because it has headers
-  cnames <- startUpload(newfls[1], dbplay, tname)
-  lapply(newfls[2:length(newfls)], function(fl){
-    read.csv(fl) %>%
-      mutate(data_date = Sys.Date()) %>%
-      setNames(cnames) %>%
-      sqlSave(channel = dbplay,
-        tablename = tname,
-        append = dbexists(dbplay, tname),
-        rownames = F,
-        varTypes = c("data_date" = "date")
-      )
-    unlink(fl)
-  })
-})
+setwd("../")
+unlink("_tmp", recursive = TRUE)
