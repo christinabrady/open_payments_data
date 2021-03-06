@@ -2,7 +2,15 @@ library(RPostgreSQL)
 library(dplyr)
 library(NCmisc)
 library(rvest)
-library(ckit)
+# library(ckit) ## this can't be installed on the server due to version incompatibility
+
+### am currently unable to install ckit on the server due to version issues
+cleanColNames <- function(dat){
+  tmp <- gsub("\\.+", "_", tolower(colnames(dat)))
+  tmp <- gsub("\\s+", "_", tmp)
+  colnames(dat) <- tmp
+  dat
+}
 
 ### the file names change to include the upload date.
 ### so it will be best to grab the file names directly from the website.
