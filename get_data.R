@@ -31,7 +31,8 @@ links <- read_html("https://www.cms.gov/OpenPayments/Explore-the-Data/Dataset-Do
   html_nodes("a") %>%
   html_attr("href")
 
-data_links <- grep(".PGYR.*\\.ZIP$", links, value = TRUE) ## this grabs the zip file download links from all of the links.
+all_data_links <- grep(".PGYR.*\\.ZIP$", links, value = TRUE) ## this grabs the zip file download links from all of the links.
+data_links <- grep("17|18|19", all_data_links, value = TRUE) ## the data format changed in 2017, so this script will only work on these files
 ## the zipped file in the base link expands to 4 files:
 # 1. OP_DTL_GNRL_PGYR...csv
 # 2. OP_DTL_OWNRSHP_PGYR...csv
