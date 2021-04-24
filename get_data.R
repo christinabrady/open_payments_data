@@ -56,7 +56,7 @@ processGeneralFile <- function(dbcon, fl){
   lapply(split_files, function(sfl){
     cat("Working on", basename(sfl), fill = TRUE)
 
-    tmp <- read.csv(sfl, header = FALSE) %>%
+    tmp <- read.csv(sfl, header = grepl("a+\\.csv", sfl), colClasses = "character") %>%
       setNames(cnames) %>%
       mutate(download_date = Sys.Date(),
         total_amount_of_payment_usdollars = as.numeric(total_amount_of_payment_usdollars),
@@ -77,7 +77,7 @@ processGeneralFile <- function(dbcon, fl){
 }
 
 processResearchFiles <- function(dbcon, fl, tname){
-  tmp <- read.csv(fl) %>%
+  tmp <- read.csv(fl, colClasses = "character") %>%
     cleanColNames() %>%
     mutate(download_date = Sys.Date(),
       program_year = as.numeric(program_year),
@@ -96,7 +96,7 @@ processResearchFiles <- function(dbcon, fl, tname){
 }
 
 processOwnershipFiles <- function(dbcon, fl, tname){
-  tmp <- read.csv(fl) %>%
+  tmp <- read.csv(fl, colClasses = "character") %>%
     cleanColNames() %>%
     mutate(download_date = Sys.Date(),
       program_year = as.numeric(program_year),
