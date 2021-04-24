@@ -2,6 +2,8 @@ library(RPostgreSQL)
 library(dplyr)
 library(NCmisc)
 library(rvest)
+
+options(timeout = 200)  ### CMS site is timing out with 60 second limit
 # library(ckit) ## this can't be installed on the server due to version incompatibility
 
 ### am currently unable to install ckit on the server due to version issues
@@ -11,6 +13,8 @@ cleanColNames <- function(dat){
   colnames(dat) <- tmp
   dat
 }
+
+dt_format <- "%m/%d/%Y"
 
 ### the file names change to include the upload date.
 ### so it will be best to grab the file names directly from the website.
@@ -54,7 +58,12 @@ processGeneralFile <- function(dbcon, fl){
 
     tmp <- read.csv(sfl, header = FALSE) %>%
       setNames(cnames) %>%
-      mutate(download_date = Sys.Date())
+      mutate(download_date = Sys.Date(),
+        total_amount_of_payment_usdollars = as.numeric(total_amount_of_payment_usdollars),
+        number_of_payments_included_in_total_amount = as.numeric(number_of_payments_included_in_total_amount),
+        date_of_payment = as.Date(date_of_payment, dt_format),
+        payment_publication_date = as.Date(payment_publication_date, dt_format)
+      )
     dbWriteTable(conn = dbcon,
       name = c("sunshine", "general"),
       value = tmp,
@@ -67,10 +76,33 @@ processGeneralFile <- function(dbcon, fl){
   unlink(fl)
 }
 
-processOtherFiles <- function(dbcon, fl, tname){
+processResearchFiles <- function(dbcon, fl, tname){
   tmp <- read.csv(fl) %>%
     cleanColNames() %>%
-    mutate(download_date = Sys.Date())
+    mutate(download_date = Sys.Date(),
+      program_year = as.numeric(program_year),
+      total_amount_of_payment_usdollars = as.numeric(total_amount_of_payment_usdollars),
+      date_of_payment = as.Date(date_of_payment, dt_format),
+      payment_publication_date = as.Date(payment_publication_date, dt_format)
+    )
+  dbWriteTable(conn = dbcon,
+    name = c("sunshine", tname),
+    value = tmp,
+    row.names = FALSE,
+    append = dbExistsTable(dbcon, c("sunshine", tname))
+  )
+  cat("Deleting file", fill = TRUE)
+  unlink(fl)
+}
+
+processOwnershipFiles <- function(dbcon, fl, tname){
+  tmp <- read.csv(fl) %>%
+    cleanColNames() %>%
+    mutate(download_date = Sys.Date(),
+      program_year = as.numeric(program_year),
+      total_amount_invested_usdollars = as.numeric(total_amount_invested_usdollars),
+      payment_publication_date = as.Date(payment_publication_date, dt_format)
+    )
   dbWriteTable(conn = dbcon,
     name = c("sunshine", tname),
     value = tmp,
@@ -96,11 +128,11 @@ processLink <- function(lnk){
 
   cat("Starting on ownership file")
   owner <- grep("OWNRSHP", unzipped_fls, value = TRUE)
-  processOtherFiles(con, owner, "ownership")
+  processOwnershipFiles(con, owner, "ownership")
 
   cat("Starting on research file")
   research <- grep("RSRCH", unzipped_fls, value = TRUE)
-  processOtherFiles(con, research, "research")
+  processResearchFiles(con, research, "research")
 
   remaining_files <- list.files()
   lapply(remaining_files, unlink)
@@ -109,7 +141,7 @@ processLink <- function(lnk){
 dir.create("_tmp")
 setwd("_tmp")
 
-dbSendQuery(con, "CREATE SCHEMA sunshine")
+# dbSendQuery(con, "CREATE SCHEMA sunshine")
 
 lapply(data_links, processLink)
 
