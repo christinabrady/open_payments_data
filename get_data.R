@@ -3,6 +3,8 @@ library(dplyr)
 library(NCmisc)
 library(rvest)
 
+### at home, change to RODBC and add auto-incrementing primary key
+
 options(timeout = 200)  ### CMS site is timing out with 60 second limit
 # library(ckit) ## this can't be installed on the server due to version incompatibility
 
