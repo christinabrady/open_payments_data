@@ -9,5 +9,5 @@ Payments can take forms:
 * Stock options
 * Other ownership interest
 
-In-kind and cash or cash equivalent are the most common.
-![All forms of payment](https://github.com/christinabrady/open_payments_data/blob/master/img/all-forms-of-payment.png?raw=true)
+In-kind and cash or cash equivalent are the most common.  
+![All forms of payment](https://github.com/christinabrady/open_payments_data/blob/master/img/all_forms-of-payment.png?raw=true)
