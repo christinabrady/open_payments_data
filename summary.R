@@ -16,6 +16,10 @@ con <- dbConnect(drv,
 year_tab <- dbGetQuery(con, "SELECT COUNT(*), program_year FROM sunshine.general GROUP BY program_year")
 
 gen_test <- dbGetQuery(con, "SELECT * FROM sunshine.general LIMIT 1000")
+vars <- colnames(gen_test)
+
+highcharts_theme <- 
+
 
 recipient_type <- dbGetQuery(con,
   "SELECT COUNT(*) AS freq, program_year, covered_recipient_type
@@ -30,13 +34,48 @@ physician_id_ct <- dbGetQuery(con,
 ## do physician id's change?
 
 pharma_ct <- dbGetQuery(con,
-  "SELECT COUNT(*) AS pharma_ct, submitting_applicable_manufacturer_or_applicable_gpo_name, program_year
+  "SELECT COUNT(*) AS pharma_ct, submitting_applicable_manufacturer_or_applicable_gpo_name AS pharma_co, program_year
   FROM sunshine.general
-  GROUP BY program_year, submitting_applicable_manufacturer_or_applicable_gpo_name")
+  GROUP BY program_year, pharma_co")
 
-## amount per year (total_amount_of_payment_usdollars)
+total_yearly_dollars <- dbGetQuery(con, "SELECT SUM(total_amount_of_payment_usdollars) as total_amount, program_year
+  FROM sunshine.general
+  GROUP BY program_year")
+
+yearly_dollars_xpharm <- dbGetQuery(con,
+  "SELECT SUM(total_amount_of_payment_usdollars) as total_amount, program_year, submitting_applicable_manufacturer_or_applicable_gpo_name AS pharma_co
+  FROM sunshine.general
+  GROUP BY program_year, pharma_co")
+
+paid_for_yearly <- dbGetQuery(con,
+  "SELECT COUNT(nature_of_payment_or_transfer_of_value) AS freq, nature_of_payment_or_transfer_of_value AS paid_for, program_year
+  FROM sunshine.general
+  GROUP BY paid_for, program_year")
+
+paid_for_yearly_dollars <- dbGetQuery(con,
+  "SELECT SUM(total_amount_of_payment_usdollars) AS total_paid, nature_of_payment_or_transfer_of_value AS paid_for, program_year
+  FROM sunshine.general
+  GROUP BY paid_for, program_year")
+
+paid_for_yearly_dollars_xpharm <- dbGetQuery(con,
+  "SELECT SUM(total_amount_of_payment_usdollars) AS total_paid, nature_of_payment_or_transfer_of_value AS paid_for, submitting_applicable_manufacturer_or_applicable_gpo_name AS pharma_co, program_year
+  FROM sunshine.general
+  GROUP BY paid_for, pharma_co, program_year")
+
+form_payment_yearly <- dbGetQuery(con,
+  "SELECT COUNT(form_of_payment_or_transfer_of_value) AS freq, form_of_payment_or_transfer_of_value AS payment_form, program_year
+  FROM sunshine.general
+  WHERE program_year IS NOT NULL
+  GROUP BY payment_form, program_year")
+
+form_payment_year %>%
+  hchart("column",
+    hcaes(x = program_year,
+      y = freq,
+      group = payment_form)
+    )
+
 ## most common form of payment? (form_of_payment_or_transfer_of_value)
-## most common nature of payment (nature_of_payment_or_transfer_of_value)
 ## dispute status (dispute_status_for_publication)
 ## who gets disputed more
 ## where do the physicians live/are licensed (physician_license_state_code1)
