@@ -10,4 +10,4 @@ Payments can take forms:
 * Other ownership interest
 
 In-kind and cash or cash equivalent are the most common.
-![All forms of payment]("img/all-forms-of-payment.png")
+![All forms of payment](https://github.com/christinabrady/open_payments_data/blob/master/img/all-forms-of-payment.png?raw=true)
