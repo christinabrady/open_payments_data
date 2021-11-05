@@ -9,5 +9,11 @@ Payments can take various forms:
 * Stock options
 * Other ownership interest
 
-In-kind and cash or cash equivalent are the most common, though the most money is spent on.  
+In-kind and cash or cash equivalent are the most common, though the most money is spent on.
 ![All forms of payment](https://github.com/christinabrady/open_payments_data/blob/master/img/all_forms-of-payment.png?raw=true)
+![Total spent in each form](https://github.com/christinabrady/open_payments_data/blob/master/img/all_forms-of-payment.png?raw=true)
+
+
+Physicans recieve these benefits much more frequently than teaching hospitals. Just shy of 850,000 physicians and about 4,000 teaching hosptials have received some sort of payment.
+
+![Payments to each recipient](https://github.com/christinabrady/open_payments_data/blob/master/img/number-of-payments-to-ea.png?raw=true)
