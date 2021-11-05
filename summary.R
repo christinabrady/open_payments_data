@@ -18,8 +18,36 @@ year_tab <- dbGetQuery(con, "SELECT COUNT(*), program_year FROM sunshine.general
 gen_test <- dbGetQuery(con, "SELECT * FROM sunshine.general LIMIT 1000")
 vars <- colnames(gen_test)
 
-highcharts_theme <- 
 
+mytheme <- hc_theme(
+  chart = list(
+    backgroundColor = "#DCDCDC"
+  ),
+  colors = c("#003f5c",
+    "#444e86",
+    "#955196",
+    "#dd5182",
+    "#ff6e54",
+    "#ffa600"
+  ),
+  title = list(
+    style = list(
+      color = "black",
+      fontSize = "35px",
+      fontWeight = "bold"
+    )
+  ),
+  subtitle = list(
+    style = list(
+      color = "black",
+      fontSize = "25px"
+    )
+  ),
+  legend = list(
+    align = "left",
+    verticalAlign = "top"
+  )
+)
 
 recipient_type <- dbGetQuery(con,
   "SELECT COUNT(*) AS freq, program_year, covered_recipient_type
@@ -65,15 +93,54 @@ paid_for_yearly_dollars_xpharm <- dbGetQuery(con,
 form_payment_yearly <- dbGetQuery(con,
   "SELECT COUNT(form_of_payment_or_transfer_of_value) AS freq, form_of_payment_or_transfer_of_value AS payment_form, program_year
   FROM sunshine.general
-  WHERE program_year IS NOT NULL
+  WHERE program_year != ''
   GROUP BY payment_form, program_year")
 
-form_payment_year %>%
+form_payment_yearly %>%
   hchart("column",
     hcaes(x = program_year,
       y = freq,
       group = payment_form)
-    )
+    ) %>%
+  hc_xAxis(title = list(
+      text = "Program Year"
+  )) %>%
+  hc_yAxis(title = list(
+      text = "Frequency"
+  )) %>%
+  hc_title(text = "Forms of Payment") %>%
+  hc_add_theme(mytheme) %>%
+  hc_exporting(enabled = TRUE)
+
+form_payment_yearly_dollars <- dbGetQuery(con,
+  "SELECT SUM(total_amount_of_payment_usdollars) AS total_payment, form_of_payment_or_transfer_of_value AS payment_form, program_year
+  FROM sunshine.general
+  WHERE program_year != ''
+  GROUP BY payment_form, program_year")
+
+form_payment_yearly_dollars %>%
+  hchart("column",
+    hcaes(x = program_year,
+      y = total_payment,
+      group = payment_form)
+    ) %>%
+  hc_xAxis(title = list(
+      text = "Program Year"
+  )) %>%
+  hc_yAxis(title = list(
+      text = "Total Amount"
+    ),
+    labels = list(
+      formatter = JS(
+        "function(){
+          return('$' + Math.round(this.value/1000000, 1) + 'M')
+        }"
+      )
+    )) %>%
+  hc_title(text = "Forms of Payment (US dollars)") %>%
+  hc_add_theme(mytheme) %>%
+  hc_exporting(enabled = TRUE)
+
 
 ## most common form of payment? (form_of_payment_or_transfer_of_value)
 ## dispute status (dispute_status_for_publication)
